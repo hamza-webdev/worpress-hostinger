@@ -11,19 +11,9 @@ services:
   db:
     image: mysql:8.0
     container_name: wordpress_mysql_db
-    # Les volumes permettent de persister les données de la base de données sur la machine hôte.
-    # Ainsi, vos données ne seront pas perdues si le conteneur est supprimé.
-    # Volumes persist the database data on the host machine.
-    # This ensures your data is not lost if the container is removed.
     volumes:
       - db_data:/var/lib/mysql
-    # Politique de redémarrage : le conteneur redémarrera automatiquement.
-    # Restart policy: the container will restart automatically.
     restart: always
-    # Variables d'environnement pour configurer la base de données MySQL.
-    # IMPORTANT : Remplacez les valeurs ci-dessous par vos propres mots de passe sécurisés.
-    # Environment variables to configure the MySQL database.
-    # IMPORTANT: Replace the values below with your own secure passwords.
     environment:
       MYSQL_ROOT_PASSWORD: changeme_root_password
       MYSQL_DATABASE: wordpress_db
@@ -35,34 +25,44 @@ services:
   # Service pour l'application WordPress.
   # Service for the WordPress application.
   wordpress:
-    # Dépend de 'db', Docker attendra que le service 'db' soit démarré avant de lancer celui-ci.
-    # Depends on 'db', Docker will wait for the 'db' service to be running before starting this one.
     depends_on:
       - db
     image: wordpress:latest
     container_name: wordpress_app
-    # Mappe le port 8080 de la machine hôte au port 80 du conteneur WordPress.
-    # Vous accéderez à votre site via http://localhost:8080.
-    # Maps port 8080 of the host machine to port 80 of the WordPress container.
-    # You will access your site via http://localhost:8080.
-    ports:
-      - "8080:80"
-    # Politique de redémarrage.
-    # Restart policy.
+    # Le port n'est plus exposé à l'hôte. Nginx gère l'accès externe.
+    # The port is no longer exposed to the host. Nginx handles external access.
     restart: always
-    # Volume pour persister les fichiers de WordPress (thèmes, plugins, uploads).
-    # Volume to persist WordPress files (themes, plugins, uploads).
     volumes:
+      # Ce volume est partagé avec Nginx pour servir les fichiers statiques.
+      # This volume is shared with Nginx to serve static files.
       - wordpress_files:/var/www/html
-    # Variables d'environnement pour connecter WordPress à sa base de données.
-    # Ces valeurs doivent correspondre à celles définies dans le service 'db'.
-    # Environment variables to connect WordPress to its database.
-    # These values must match those defined in the 'db' service.
     environment:
-      WORDPRESS_DB_HOST: db:3306 # 'db' est le nom du service MySQL, 3306 est le port.
+      WORDPRESS_DB_HOST: db:3306
       WORDPRESS_DB_USER: wordpress_user
       WORDPRESS_DB_PASSWORD: changeme_wordpress_password
       WORDPRESS_DB_NAME: wordpress_db
+    networks:
+      - wordpress-net
+
+  # Service Nginx agissant comme reverse proxy.
+  # Nginx service acting as a reverse proxy.
+  nginx:
+    image: nginx:latest
+    container_name: wordpress_nginx
+    depends_on:
+      - wordpress
+    # Mappe le port 8008 de l'hôte au port 80 du conteneur Nginx.
+    # Maps port 8008 of the host to port 80 of the Nginx container.
+    ports:
+      - "8008:80"
+    volumes:
+      # Volume partagé pour les fichiers WordPress (lecture seule).
+      # Shared volume for WordPress files (read-only).
+      - wordpress_files:/var/www/html:ro
+      # Monte le fichier de configuration Nginx que vous allez créer.
+      # Mounts the Nginx configuration file you will create.
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    restart: always
     networks:
       - wordpress-net
 
@@ -73,15 +73,9 @@ services:
       - db
     image: phpmyadmin/phpmyadmin
     container_name: wordpress_phpmyadmin
-    # Mappe le port 8081 de la machine hôte. Accès via http://localhost:8081.
-    # Maps port 8081 of the host machine. Access via http://localhost:8081.
     ports:
       - "8081:80"
-    # Politique de redémarrage.
-    # Restart policy.
     restart: always
-    # Indique à phpMyAdmin quel serveur de base de données utiliser.
-    # Tells phpMyAdmin which database server to use.
     environment:
       PMA_HOST: db
     networks:
