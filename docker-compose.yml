@@ -54,7 +54,7 @@ services:
     # Mappe le port 80 de l'hôte au port 80 du conteneur Nginx (port HTTP par défaut).
     # Maps port 80 of the host to port 80 of the Nginx container (default HTTP port).
     ports:
-      - "8000:80"
+      - "80:80"
     volumes:
       # Volume partagé pour les fichiers WordPress (lecture seule).
       # Shared volume for WordPress files (read-only).
